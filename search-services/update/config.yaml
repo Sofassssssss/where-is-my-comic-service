@@ -1,0 +1,10 @@
+log_level: DEBUG
+update_address: localhost:8082
+words_address: localhost:8081
+db_address: postgres://sofiavovchenko:password@localhost:5432/search_service
+nats_address: nats://localhost:4222
+xkcd:
+  url: https://xkcd.com
+  concurrency: 10
+  check_period: 1h
+  timeout: 10s

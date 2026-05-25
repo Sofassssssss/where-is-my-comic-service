@@ -1,0 +1,11 @@
+log_level: DEBUG
+search_concurrency: 1
+search_rate: 100
+token_ttl: 24h
+words_address: localhost:8081
+update_address: localhost:8082
+search_address: localhost:8083
+isearch_address: localhost:8084
+api_server:
+  address: localhost:8080
+  timeout: 5s

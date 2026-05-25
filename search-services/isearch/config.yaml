@@ -1,0 +1,7 @@
+log_level: DEBUG
+index_ttl: 24h
+isearch_address: localhost:8084
+words_address: localhost:8081
+nats_address: nats://localhost:4222
+db_address: postgres://sofiavovchenko:password@localhost:5432/search_service
+

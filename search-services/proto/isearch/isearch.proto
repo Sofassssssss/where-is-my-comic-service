@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package isearch;
+
+import "google/protobuf/empty.proto";
+
+option go_package = "where-is-my-comic-service/search-services/proto/isearch";
+
+message ISearchRequest{
+  string phrase = 1;
+  int32 limit = 2;
+}
+
+message Comics{
+  int64 id = 1;
+  string url = 2;
+}
+
+message ISearchResponse {
+  repeated Comics comics = 1;
+}
+
+service ISearch {
+  rpc Ping(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+
+  rpc ISearch(ISearchRequest) returns (ISearchResponse) {}
+}

@@ -1,0 +1,1091 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>rest: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">yadro.com/course/api/adapters/rest/api.go (58.3%)</option>
+				
+				<option value="file1">yadro.com/course/api/adapters/rest/middleware/auth.go (100.0%)</option>
+				
+				<option value="file2">yadro.com/course/isearch/adapters/grpc/server.go (100.0%)</option>
+				
+				<option value="file3">yadro.com/course/isearch/adapters/initiator/initiator.go (100.0%)</option>
+				
+				<option value="file4">yadro.com/course/isearch/core/service.go (93.1%)</option>
+				
+				<option value="file5">yadro.com/course/search/adapters/grpc/server.go (100.0%)</option>
+				
+				<option value="file6">yadro.com/course/search/core/service.go (91.2%)</option>
+				
+				<option value="file7">yadro.com/course/update/adapters/grpc/server.go (100.0%)</option>
+				
+				<option value="file8">yadro.com/course/update/core/service.go (81.4%)</option>
+				
+				<option value="file9">yadro.com/course/words/words/words.go (100.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package rest
+
+import (
+        "encoding/json"
+        "log/slog"
+        "net/http"
+        "strconv"
+
+        "github.com/prometheus/client_golang/prometheus/promhttp"
+        "where-is-my-comic-service/search-services/api/core"
+)
+
+func handleMappedError(w http.ResponseWriter, err error) <span class="cov8" title="1">{
+        httpStatus, message := HttpError(err)
+        http.Error(w, message, httpStatus)
+}</span>
+
+func NewMetricsHandler() http.HandlerFunc <span class="cov0" title="0">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov0" title="0">{
+                promhttp.Handler().ServeHTTP(w, r)
+        }</span>
+}
+
+func NewPingHandler(log *slog.Logger, pingers map[string]core.Pinger) http.HandlerFunc <span class="cov8" title="1">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                statuses := make(map[string]string)
+                for name, service := range pingers </span><span class="cov8" title="1">{
+                        if err := service.Ping(r.Context()); err != nil </span><span class="cov8" title="1">{
+                                log.Error("Ping failed", "service", service, "error", err)
+                                statuses[name] = "unavailable"
+                                continue</span>
+                        }
+                        <span class="cov8" title="1">statuses[name] = "ok"</span>
+                }
+                <span class="cov8" title="1">resp := PingResponse{Replies: statuses}
+                if err := json.NewEncoder(w).Encode(resp); err != nil </span><span class="cov0" title="0">{
+                        log.Error("Failed to encode ping response", "error", err)
+                        http.Error(w, "Error occurred", http.StatusInternalServerError)
+                }</span>
+        }
+}
+
+type Authenticator interface {
+        Login(user, password string) (string, error)
+}
+
+func NewLoginHandler(log *slog.Logger, auth Authenticator) http.HandlerFunc <span class="cov8" title="1">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                defer func() </span><span class="cov8" title="1">{
+                        if err := r.Body.Close(); err != nil </span><span class="cov0" title="0">{
+                                log.Error("failed to close body", "err", err)
+                        }</span>
+                }()
+                <span class="cov8" title="1">var req LoginRequest
+                err := json.NewDecoder(r.Body).Decode(&amp;req)
+                if err != nil </span><span class="cov8" title="1">{
+                        log.Error("Error while decoding request to json", "error", err)
+                        http.Error(w, "invalid request body", http.StatusBadRequest)
+                        return
+                }</span>
+                <span class="cov8" title="1">tokenString, err := auth.Login(req.Name, req.Password)
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Error("Login failed", "error", err)
+                        handleMappedError(w, err)
+                        return
+                }</span>
+
+                <span class="cov8" title="1">w.Header().Set("Content-Type", "text/plain")
+                w.WriteHeader(http.StatusOK)
+
+                _, _ = w.Write([]byte(tokenString))</span>
+        }
+}
+
+func NewUpdateHandler(log *slog.Logger, updater core.Updater) http.HandlerFunc <span class="cov8" title="1">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                updateReply, err := updater.Update(r.Context())
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Error("Error", "is", err)
+                        handleMappedError(w, err)
+                        return
+                }</span>
+                <span class="cov8" title="1">resp := UpdateResponse{
+                        ComicsInserted: updateReply.ComicsInserted,
+                }
+                if err := json.NewEncoder(w).Encode(resp); err != nil </span><span class="cov0" title="0">{
+                        log.Error("Error while encoding response to json", "error", err)
+                        http.Error(w, "Error occurred", http.StatusInternalServerError)
+                        return
+                }</span>
+        }
+}
+
+func NewUpdateStatsHandler(log *slog.Logger, updater core.Updater) http.HandlerFunc <span class="cov8" title="1">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                stats, err := updater.Stats(r.Context())
+                if err != nil </span><span class="cov8" title="1">{
+                        handleMappedError(w, err)
+                        return
+                }</span>
+                <span class="cov8" title="1">resp := StatsResponse{
+                        WordsTotal:    stats.WordsTotal,
+                        WordsUnique:   stats.WordsUnique,
+                        ComicsFetched: stats.ComicsFetched,
+                        ComicsTotal:   stats.ComicsTotal,
+                }
+                if err := json.NewEncoder(w).Encode(resp); err != nil </span><span class="cov0" title="0">{
+                        log.Error("Error while encoding response to json", "error", err)
+                        http.Error(w, "Error occurred", http.StatusInternalServerError)
+                        return
+                }</span>
+        }
+}
+
+func NewUpdateStatusHandler(log *slog.Logger, updater core.Updater) http.HandlerFunc <span class="cov8" title="1">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                status, err := updater.Status(r.Context())
+                if err != nil </span><span class="cov8" title="1">{
+                        handleMappedError(w, err)
+                        return
+                }</span>
+                <span class="cov8" title="1">resp := StatusResponse{
+                        Status: string(status),
+                }
+                if err := json.NewEncoder(w).Encode(resp); err != nil </span><span class="cov0" title="0">{
+                        log.Error("Error while encoding response to json", "error", err)
+                        http.Error(w, "Error occurred", http.StatusInternalServerError)
+                        return
+                }</span>
+        }
+}
+
+func NewDropHandler(log *slog.Logger, updater core.Updater) http.HandlerFunc <span class="cov8" title="1">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                err := updater.Drop(r.Context())
+                if err != nil </span><span class="cov0" title="0">{
+                        handleMappedError(w, err)
+                        return
+                }</span>
+        }
+}
+
+func NewSearchHandler(log *slog.Logger, searcher core.Searcher) http.HandlerFunc <span class="cov0" title="0">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov0" title="0">{
+                phrase := r.URL.Query().Get("phrase")
+                if len(phrase) == 0 </span><span class="cov0" title="0">{
+                        http.Error(w, "phrase cannot be empty", http.StatusBadRequest)
+                        return
+                }</span>
+                <span class="cov0" title="0">limitStr := r.URL.Query().Get("limit")
+                limit := 10
+                if limitStr != "" </span><span class="cov0" title="0">{
+                        parsedLimit, err := strconv.Atoi(limitStr)
+                        if err != nil </span><span class="cov0" title="0">{
+                                http.Error(w, "invalid limit: must be integer", http.StatusBadRequest)
+                                return
+                        }</span>
+                        <span class="cov0" title="0">if parsedLimit &lt; 1 </span><span class="cov0" title="0">{
+                                http.Error(w, "invalid limit: must be greater than 0", http.StatusBadRequest)
+                                return
+                        }</span>
+                        <span class="cov0" title="0">limit = parsedLimit</span>
+                }
+                <span class="cov0" title="0">searchReply, err := searcher.Search(r.Context(), core.SearchRequest{
+                        Phrase: phrase,
+                        Limit:  limit,
+                })
+                if err != nil </span><span class="cov0" title="0">{
+                        handleMappedError(w, err)
+                        return
+                }</span>
+
+                <span class="cov0" title="0">resp := SearchResponse{
+                        Comics: MapToSliceComicsDTO(searchReply),
+                        Total:  len(searchReply),
+                }
+                if err := json.NewEncoder(w).Encode(resp); err != nil </span><span class="cov0" title="0">{
+                        log.Error("Error while encoding response to json", "error", err)
+                        http.Error(w, "Error occurred", http.StatusInternalServerError)
+                        return
+                }</span>
+        }
+}
+
+func NewISearchHandler(log *slog.Logger, iSearcher core.ISearcher) http.HandlerFunc <span class="cov8" title="1">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                phrase := r.URL.Query().Get("phrase")
+                if len(phrase) == 0 </span><span class="cov8" title="1">{
+                        http.Error(w, "phrase cannot be empty", http.StatusBadRequest)
+                        return
+                }</span>
+                <span class="cov8" title="1">limitStr := r.URL.Query().Get("limit")
+                limit := 10
+                if limitStr != "" </span><span class="cov8" title="1">{
+                        parsedLimit, err := strconv.Atoi(limitStr)
+                        if err != nil </span><span class="cov8" title="1">{
+                                http.Error(w, "invalid limit: must be integer", http.StatusBadRequest)
+                                return
+                        }</span>
+                        <span class="cov8" title="1">if parsedLimit &lt; 1 </span><span class="cov8" title="1">{
+                                http.Error(w, "invalid limit: must be greater than 0", http.StatusBadRequest)
+                                return
+                        }</span>
+                        <span class="cov8" title="1">limit = parsedLimit</span>
+                }
+                <span class="cov8" title="1">iSearchReply, err := iSearcher.ISearch(r.Context(), core.ISearchRequest{
+                        Phrase: phrase,
+                        Limit:  limit,
+                })
+                if err != nil </span><span class="cov8" title="1">{
+                        handleMappedError(w, err)
+                        return
+                }</span>
+
+                <span class="cov8" title="1">resp := ISearchResponse{
+                        Comics: MapToSliceComicsDTO(iSearchReply),
+                        Total:  len(iSearchReply),
+                }
+                if err := json.NewEncoder(w).Encode(resp); err != nil </span><span class="cov0" title="0">{
+                        log.Error("Error while encoding response to json", "error", err)
+                        http.Error(w, "Error occurred", http.StatusInternalServerError)
+                        return
+                }</span>
+        }
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package middleware
+
+import (
+        "net/http"
+        "strings"
+
+        "where-is-my-comic-service/search-services/api/adapters/rest"
+)
+
+type TokenVerifier interface {
+        Verify(token string) error
+}
+
+func Auth(next http.HandlerFunc, verifier TokenVerifier) http.HandlerFunc <span class="cov8" title="1">{
+        return func(w http.ResponseWriter, r *http.Request) </span><span class="cov8" title="1">{
+                authHeader := r.Header.Get("Authorization")
+                if authHeader == "" </span><span class="cov8" title="1">{
+                        http.Error(w, "Authorization header required", http.StatusUnauthorized)
+                        return
+                }</span>
+                <span class="cov8" title="1">if !strings.HasPrefix(authHeader, "Token ") </span><span class="cov8" title="1">{
+                        http.Error(w, "invalid authorization header", http.StatusUnauthorized)
+                        return
+                }</span>
+                <span class="cov8" title="1">tokenString := strings.TrimPrefix(authHeader, "Token ")
+                err := verifier.Verify(tokenString)
+                if err != nil </span><span class="cov8" title="1">{
+                        httpStatus, message := rest.HttpError(err)
+                        http.Error(w, message, httpStatus)
+                        return
+                }</span>
+                <span class="cov8" title="1">next(w, r)</span>
+        }
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">package grpc
+
+import (
+        "context"
+        "log/slog"
+
+        "google.golang.org/protobuf/types/known/emptypb"
+        "where-is-my-comic-service/search-services/isearch/core"
+        isearchpb "where-is-my-comic-service/search-services/proto/isearch"
+)
+
+func NewServer(service core.ISearcher) *Server <span class="cov8" title="1">{
+        return &amp;Server{service: service}
+}</span>
+
+type Server struct {
+        isearchpb.UnimplementedISearchServer
+        service core.ISearcher
+}
+
+func (s *Server) Ping(_ context.Context, _ *emptypb.Empty) (*emptypb.Empty, error) <span class="cov8" title="1">{ return nil, nil }</span>
+
+func (s *Server) ISearch(ctx context.Context, in *isearchpb.ISearchRequest) (*isearchpb.ISearchResponse, error) <span class="cov8" title="1">{
+        iSearchReply, err := s.service.ISearch(ctx, core.ISearchRequest{
+                Phrase: in.Phrase,
+                Limit:  int(in.GetLimit()),
+        })
+        if err != nil </span><span class="cov8" title="1">{
+                slog.Error("Error", "err", err)
+                return nil, MapGRPCError(err)
+        }</span>
+        <span class="cov8" title="1">return &amp;isearchpb.ISearchResponse{
+                Comics: toProtoComics(iSearchReply),
+        }, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">package initiator
+
+import (
+        "context"
+        "log/slog"
+        "time"
+
+        "where-is-my-comic-service/search-services/isearch/core"
+)
+
+type Initiator struct {
+        builder core.IndexBuilder
+        ttl     time.Duration
+        log     *slog.Logger
+}
+
+func New(builder core.IndexBuilder, ttl time.Duration, log *slog.Logger) *Initiator <span class="cov8" title="1">{
+        return &amp;Initiator{
+                builder: builder,
+                ttl:     ttl,
+                log:     log,
+        }
+}</span>
+
+func (i *Initiator) InitInitial(ctx context.Context) error <span class="cov8" title="1">{
+        i.log.Info("Starting initial index build...")
+        if err := i.builder.RebuildIndex(ctx); err != nil </span><span class="cov8" title="1">{
+                i.log.Error("Failed to build initial index", "err", err)
+                return err
+        }</span>
+        <span class="cov8" title="1">i.log.Info("Initial index built successfully")
+        return nil</span>
+}
+
+func (i *Initiator) Start(ctx context.Context) <span class="cov8" title="1">{
+        ticker := time.NewTicker(i.ttl)
+        defer ticker.Stop()
+        for </span><span class="cov8" title="1">{
+                select </span>{
+                case &lt;-ctx.Done():<span class="cov8" title="1">
+                        i.log.Info("Stopping initiator...")
+                        return</span>
+                case &lt;-ticker.C:<span class="cov8" title="1">
+                        i.log.Info("Rebuilding index by timer...")
+                        if err := i.builder.RebuildIndex(ctx); err != nil </span><span class="cov8" title="1">{
+                                i.log.Error("Failed to rebuild index", "err", err)
+                        }</span>
+                }
+        }
+}
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">package core
+
+import (
+        "context"
+        "log/slog"
+        "slices"
+        "sort"
+        "strings"
+        "sync/atomic"
+
+        "github.com/iwilltry42/bm25-go/bm25"
+)
+
+const k1 = 1.5
+const b = 0.75
+
+type Service struct {
+        log        *slog.Logger
+        db         DB
+        words      Words
+        index      atomic.Pointer[SearchIndex]
+        rebuilding atomic.Bool
+}
+
+type searchResult struct {
+        ID    int
+        Score float64
+}
+
+func NewService(log *slog.Logger, db DB, words Words) (*Service, error) <span class="cov8" title="1">{
+        return &amp;Service{
+                log:   log,
+                db:    db,
+                words: words,
+        }, nil
+}</span>
+
+func removeDuplicates(keyWords []string) []string <span class="cov8" title="1">{
+        slices.Sort(keyWords)
+        keyWords = slices.Compact(keyWords)
+        return keyWords
+}</span>
+
+func tokenizer(s string) []string <span class="cov8" title="1">{
+        return strings.Split(s, " ")
+}</span>
+
+func buildSearchIndex(comicsData []ComicsKeyWords) (*SearchIndex, error) <span class="cov8" title="1">{
+        searchIndex := &amp;SearchIndex{
+                InvertedIndex: make(map[string][]DocMeta),
+                IDF:           make(map[string]float64),
+        }
+        corpus := make([]string, 0, len(comicsData))
+
+        for _, c := range comicsData </span><span class="cov8" title="1">{
+                corpus = append(corpus, strings.Join(c.KeyWords, " "))
+        }</span>
+
+        <span class="cov8" title="1">if len(corpus) == 0 </span><span class="cov8" title="1">{
+                return searchIndex, nil
+        }</span>
+        <span class="cov8" title="1">bm, err := bm25.NewBM25Okapi(corpus, tokenizer, k1, b, nil)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">for _, data := range comicsData </span><span class="cov8" title="1">{
+                keyWordsJoined := strings.Join(data.KeyWords, " ")
+                uniqueKeyWords := removeDuplicates(data.KeyWords)
+                for _, keyWord := range uniqueKeyWords </span><span class="cov8" title="1">{
+                        termFreq, err := bm25.CountTermFreq(keyWord, keyWordsJoined, tokenizer)
+
+                        if err != nil </span><span class="cov0" title="0">{
+                                return nil, err
+                        }</span>
+
+                        <span class="cov8" title="1">if _, ok := searchIndex.IDF[keyWord]; !ok </span><span class="cov8" title="1">{
+                                idf, err := bm.IDF(keyWord)
+                                if err != nil </span><span class="cov0" title="0">{
+                                        return nil, err
+                                }</span>
+                                <span class="cov8" title="1">searchIndex.IDF[keyWord] = idf</span>
+                        }
+
+                        <span class="cov8" title="1">searchIndex.InvertedIndex[keyWord] = append(searchIndex.InvertedIndex[keyWord], DocMeta{
+                                DocID: data.ID,
+                                TF:    termFreq,
+                        })</span>
+                }
+        }
+        <span class="cov8" title="1">searchIndex.DocLengths = bm.DocLengths()
+        searchIndex.TotalDocs = bm.CorpusSize()
+        searchIndex.AvgDocLength = bm.AvgDocLen()
+
+        return searchIndex, nil</span>
+}
+
+func (s *Service) RebuildIndex(ctx context.Context) error <span class="cov8" title="1">{
+        if !s.rebuilding.CompareAndSwap(false, true) </span><span class="cov8" title="1">{
+                s.log.Info("rebuild already in progress, skipping")
+                return nil
+        }</span>
+        <span class="cov8" title="1">defer s.rebuilding.Store(false)
+        s.log.Info("Starting index rebuild process...")
+        comicsData, err := s.db.GetComicsData(ctx)
+        if err != nil </span><span class="cov8" title="1">{
+                s.log.Error("", "err", err)
+                return err
+        }</span>
+        <span class="cov8" title="1">newIndex, err := buildSearchIndex(comicsData)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+
+        <span class="cov8" title="1">s.index.Store(newIndex)
+        s.log.Info("Index successfully rebuilt")
+        return nil</span>
+}
+
+func getBM25Score(tf int, idf float64, dl int, avgDL float64) float64 <span class="cov8" title="1">{
+
+        TF := float64(tf)
+        DL := float64(dl)
+        numerator := TF * (k1 + 1)
+        denominator := TF + k1*(1-b+b*(DL/avgDL))
+
+        score := idf * (numerator / denominator)
+        return score
+
+}</span>
+
+func getDocScores(normalizedPhrase []string, currentIndex *SearchIndex) map[int]float64 <span class="cov8" title="1">{
+        docScores := make(map[int]float64)
+        for _, phrase := range normalizedPhrase </span><span class="cov8" title="1">{
+                metaList, ok := currentIndex.InvertedIndex[phrase]
+                if !ok </span><span class="cov0" title="0">{
+                        continue</span>
+                }
+                <span class="cov8" title="1">idf := currentIndex.IDF[phrase]
+                for _, docMeta := range metaList </span><span class="cov8" title="1">{
+                        score := getBM25Score(
+                                docMeta.TF,
+                                idf,
+                                currentIndex.DocLengths[docMeta.DocID-1],
+                                currentIndex.AvgDocLength,
+                        )
+
+                        docScores[docMeta.DocID] += score
+                }</span>
+        }
+        <span class="cov8" title="1">return docScores</span>
+}
+
+func (s *Service) ISearch(ctx context.Context, req ISearchRequest) ([]Comics, error) <span class="cov8" title="1">{
+        s.log.Info("Request", "request", req)
+        normalizedPhrase, err := s.words.Norm(ctx, req.Phrase)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">currentIndex := s.index.Load()
+        if currentIndex == nil </span><span class="cov8" title="1">{
+                return nil, ErrIndexNotReady
+        }</span>
+        <span class="cov8" title="1">docScores := getDocScores(normalizedPhrase, currentIndex)
+
+        relevantComics := make([]searchResult, 0, len(docScores))
+        for docID, docScore := range docScores </span><span class="cov8" title="1">{
+                relevantComics = append(relevantComics, searchResult{
+                        ID:    docID,
+                        Score: docScore,
+                })
+        }</span>
+
+        <span class="cov8" title="1">sort.Slice(relevantComics, func(i, j int) bool </span><span class="cov8" title="1">{
+                return relevantComics[i].Score &gt; relevantComics[j].Score
+        }</span>)
+
+        <span class="cov8" title="1">if req.Limit &gt; len(relevantComics) </span><span class="cov8" title="1">{
+                req.Limit = len(relevantComics)
+        }</span>
+        <span class="cov8" title="1">relevantComics = relevantComics[:req.Limit]
+        var result []Comics
+
+        for _, comics := range relevantComics </span><span class="cov8" title="1">{
+                if comics.Score == 0 </span><span class="cov0" title="0">{
+                        continue</span>
+                }
+
+                <span class="cov8" title="1">comicsImageURL, err := s.db.GetImageURL(ctx, comics.ID)
+                if err != nil </span><span class="cov8" title="1">{
+                        return nil, err
+                }</span>
+                <span class="cov8" title="1">result = append(result, Comics{
+                        ID:  int64(comics.ID),
+                        URL: comicsImageURL,
+                })</span>
+        }
+        <span class="cov8" title="1">return result, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">package grpc
+
+import (
+        "context"
+        "log/slog"
+
+        "google.golang.org/grpc/codes"
+        "google.golang.org/grpc/status"
+        "google.golang.org/protobuf/types/known/emptypb"
+        searchpb "where-is-my-comic-service/search-services/proto/search"
+        "where-is-my-comic-service/search-services/search/core"
+)
+
+func NewServer(service core.Searcher) *Server <span class="cov8" title="1">{
+        return &amp;Server{service: service}
+}</span>
+
+type Server struct {
+        searchpb.UnimplementedSearchServer
+        service core.Searcher
+}
+
+func (s *Server) Ping(_ context.Context, _ *emptypb.Empty) (*emptypb.Empty, error) <span class="cov8" title="1">{ return nil, nil }</span>
+
+func (s *Server) Search(ctx context.Context, in *searchpb.SearchRequest) (*searchpb.SearchResponse, error) <span class="cov8" title="1">{
+        searchReply, err := s.service.Search(ctx, core.SearchRequest{
+                Phrase: in.Phrase,
+                Limit:  int(in.GetLimit()),
+        })
+        if err != nil </span><span class="cov8" title="1">{
+                slog.Error("Error", "err", err)
+                return nil, status.Error(codes.Internal, "failed to search")
+        }</span>
+        <span class="cov8" title="1">return &amp;searchpb.SearchResponse{
+                Comics: toProtoComics(searchReply),
+        }, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">package core
+
+import (
+        "context"
+        "log/slog"
+        "strings"
+
+        "github.com/iwilltry42/bm25-go/bm25"
+)
+
+type Service struct {
+        log   *slog.Logger
+        db    DB
+        words Words
+}
+
+func NewService(log *slog.Logger, db DB, words Words) (*Service, error) <span class="cov8" title="1">{
+        return &amp;Service{
+                log:   log,
+                db:    db,
+                words: words,
+        }, nil
+}</span>
+
+func (s *Service) Search(ctx context.Context, req SearchRequest) ([]Comics, error) <span class="cov8" title="1">{
+        normalizedPhrase, err := s.words.Norm(ctx, req.Phrase)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+
+        <span class="cov8" title="1">comicsData, err := s.db.GetComicsData(ctx)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">corpus := make([]string, 0, len(comicsData))
+        comicsID := make([]int, 0, len(comicsData))
+
+        for _, c := range comicsData </span><span class="cov8" title="1">{
+                corpus = append(corpus, strings.Join(c.KeyWords, " "))
+                comicsID = append(comicsID, c.ID)
+        }</span>
+
+        <span class="cov8" title="1">if len(corpus) == 0 </span><span class="cov8" title="1">{
+                return []Comics{}, nil
+        }</span>
+
+        <span class="cov8" title="1">tokenizer := func(s string) []string </span><span class="cov8" title="1">{
+                return strings.Split(s, " ")
+        }</span>
+
+        <span class="cov8" title="1">bm, err := bm25.NewBM25Okapi(corpus, tokenizer, 1.5, 0.75, nil)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">scores, err := bm.GetScores(normalizedPhrase)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">topIndices, err := bm25.TopNIndices(scores, req.Limit)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">var result []Comics
+
+        for _, index := range topIndices </span><span class="cov8" title="1">{
+                if scores[index] == 0 </span><span class="cov8" title="1">{
+                        continue</span>
+                }
+                <span class="cov8" title="1">comicsImageURL, err := s.db.GetImageURL(ctx, comicsID[index])
+                if err != nil </span><span class="cov0" title="0">{
+                        return nil, err
+                }</span>
+                <span class="cov8" title="1">result = append(result, Comics{
+                        ID:  int64(comicsID[index]),
+                        URL: comicsImageURL,
+                })</span>
+        }
+        <span class="cov8" title="1">return result, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file7" style="display: none">package grpc
+
+import (
+        "context"
+        "log/slog"
+
+        "google.golang.org/grpc/codes"
+        "google.golang.org/grpc/status"
+        "google.golang.org/protobuf/types/known/emptypb"
+        updatepb "where-is-my-comic-service/search-services/proto/update"
+        "where-is-my-comic-service/search-services/update/core"
+)
+
+func NewServer(service core.Updater) *Server <span class="cov8" title="1">{
+        return &amp;Server{service: service}
+}</span>
+
+type Server struct {
+        updatepb.UnimplementedUpdateServer
+        service core.Updater
+}
+
+func (s *Server) Ping(_ context.Context, _ *emptypb.Empty) (*emptypb.Empty, error) <span class="cov8" title="1">{ return nil, nil }</span>
+
+func (s *Server) Status(ctx context.Context, _ *emptypb.Empty) (*updatepb.StatusReply, error) <span class="cov8" title="1">{
+        serviceStatus := s.service.Status(ctx)
+        return &amp;updatepb.StatusReply{
+                Status: ToProtoStatus(serviceStatus),
+        }, nil
+}</span>
+
+func (s *Server) Update(ctx context.Context, _ *emptypb.Empty) (*updatepb.UpdateReply, error) <span class="cov8" title="1">{
+        if s.service.Status(ctx) == core.StatusRunning </span><span class="cov8" title="1">{
+                return nil, status.Error(codes.Unavailable, "update is already running")
+        }</span>
+        <span class="cov8" title="1">updateReply, err := s.service.Update(ctx)
+        if err != nil </span><span class="cov8" title="1">{
+                return nil, status.Error(codes.Internal, "failed to update")
+        }</span>
+        <span class="cov8" title="1">return &amp;updatepb.UpdateReply{
+                ComicsInserted: int64(updateReply.ComicsInserted),
+        }, nil</span>
+}
+
+func (s *Server) Stats(ctx context.Context, _ *emptypb.Empty) (*updatepb.StatsReply, error) <span class="cov8" title="1">{
+        serviceStats, err := s.service.Stats(ctx)
+        if err != nil </span><span class="cov8" title="1">{
+                slog.Error("Error while getting stats", "err", err)
+                return nil, status.Error(codes.Internal, "failed to get stats")
+        }</span>
+        <span class="cov8" title="1">return &amp;updatepb.StatsReply{
+                WordsTotal:    int64(serviceStats.WordsTotal),
+                WordsUnique:   int64(serviceStats.WordsUnique),
+                ComicsFetched: int64(serviceStats.ComicsFetched),
+                ComicsTotal:   int64(serviceStats.ComicsTotal),
+        }, nil</span>
+}
+
+func (s *Server) Drop(ctx context.Context, _ *emptypb.Empty) (*emptypb.Empty, error) <span class="cov8" title="1">{
+        err := s.service.Drop(ctx)
+        return &amp;emptypb.Empty{}, err
+}</span>
+</pre>
+		
+		<pre class="file" id="file8" style="display: none">package core
+
+import (
+        "context"
+        "fmt"
+        "log/slog"
+        "strings"
+        "sync"
+        "sync/atomic"
+)
+
+type Service struct {
+        log         *slog.Logger
+        db          DB
+        xkcd        XKCD
+        words       Words
+        publisher   Publisher
+        concurrency int
+        isBusy      atomic.Int32
+}
+
+func NewService(
+        log *slog.Logger, db DB, xkcd XKCD, words Words, publisher Publisher, concurrency int,
+) (*Service, error) <span class="cov8" title="1">{
+        if concurrency &lt; 1 </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("wrong concurrency specified: %d", concurrency)
+        }</span>
+        <span class="cov8" title="1">return &amp;Service{
+                log:         log,
+                db:          db,
+                xkcd:        xkcd,
+                words:       words,
+                publisher:   publisher,
+                concurrency: concurrency,
+        }, nil</span>
+}
+
+func updateWorker(s *Service, jobs &lt;-chan int, insertionsCounter *atomic.Int64, ctx context.Context) <span class="cov8" title="1">{
+        for comicsID := range jobs </span><span class="cov8" title="1">{
+                data, err := s.xkcd.Get(ctx, comicsID)
+                if err != nil </span><span class="cov0" title="0">{
+                        s.log.Error("failed to get xkcd data", "id", comicsID, "error", err)
+                        continue</span>
+                }
+                <span class="cov8" title="1">keyWords := strings.Join([]string{
+                        data.Title,
+                        data.Alt,
+                        data.Description,
+                        data.SafeTitle,
+                }, " ")
+
+                /*
+                        Normalization without removing duplicates to incorporate term frequency metric of BM25 score.
+                */
+                normalizedDesc, err := s.words.NormLeaveDuplicates(ctx, keyWords)
+                if err != nil </span><span class="cov0" title="0">{
+                        s.log.Error("words normalization failed", "id", comicsID, "error", err)
+                        continue</span>
+                }
+                <span class="cov8" title="1">err = s.db.Add(ctx, Comics{
+                        ID:    data.ID,
+                        URL:   data.URL,
+                        Words: normalizedDesc,
+                })
+                if err != nil </span><span class="cov8" title="1">{
+                        s.log.Error("failed to add comics to db", "id", comicsID, "error", err)
+                        continue</span>
+                }
+                <span class="cov8" title="1">insertionsCounter.Add(1)</span>
+        }
+}
+
+func getComicsToInsert(comicsAmount int, insertedComicsIDs []int) []int <span class="cov8" title="1">{
+        comicsToInsert := make([]int, 0, comicsAmount-len(insertedComicsIDs))
+        existing := make(map[int]struct{}, len(insertedComicsIDs))
+        for _, id := range insertedComicsIDs </span><span class="cov8" title="1">{
+                existing[id] = struct{}{}
+        }</span>
+        <span class="cov8" title="1">for i := 1; i &lt;= comicsAmount; i++ </span><span class="cov8" title="1">{
+                if _, ok := existing[i]; !ok </span><span class="cov8" title="1">{
+                        comicsToInsert = append(comicsToInsert, i)
+                }</span>
+        }
+
+        <span class="cov8" title="1">return comicsToInsert</span>
+}
+
+func (s *Service) Update(ctx context.Context) (Update, error) <span class="cov8" title="1">{
+        if !s.isBusy.CompareAndSwap(0, 1) </span><span class="cov8" title="1">{
+                return Update{}, ErrUpdateRunning
+        }</span>
+        <span class="cov8" title="1">defer s.isBusy.Store(0)
+        comicsAmount, err := s.xkcd.LastID(ctx)
+        if err != nil </span><span class="cov0" title="0">{
+                return Update{}, err
+        }</span>
+        <span class="cov8" title="1">insertedComicsIDs, err := s.db.IDs(ctx)
+        if err != nil </span><span class="cov0" title="0">{
+                return Update{}, err
+        }</span>
+        <span class="cov8" title="1">comicsToInsert := getComicsToInsert(comicsAmount, insertedComicsIDs)
+        s.log.Info("Comics to insert", "n", len(comicsToInsert))
+
+        jobs := make(chan int, len(comicsToInsert))
+        var insertionsCounter atomic.Int64
+        var wg sync.WaitGroup
+
+        for range s.concurrency </span><span class="cov8" title="1">{
+                wg.Go(func() </span><span class="cov8" title="1">{
+                        updateWorker(s, jobs, &amp;insertionsCounter, ctx)
+                }</span>)
+        }
+
+        <span class="cov8" title="1">for _, j := range comicsToInsert </span><span class="cov8" title="1">{
+                jobs &lt;- j
+        }</span>
+        <span class="cov8" title="1">close(jobs)
+        wg.Wait()
+
+        err = s.publisher.PublishUpdate(ctx)
+        if err != nil </span><span class="cov0" title="0">{
+                s.log.Error("failed to publish event", "err", err)
+                return Update{}, err
+        }</span>
+        <span class="cov8" title="1">return Update{
+                ComicsInserted: int(insertionsCounter.Load()),
+        }, nil</span>
+}
+
+func (s *Service) Stats(ctx context.Context) (ServiceStats, error) <span class="cov8" title="1">{
+        dbStats, err := s.db.Stats(ctx)
+        if err != nil </span><span class="cov0" title="0">{
+                return ServiceStats{}, err
+        }</span>
+        <span class="cov8" title="1">comicsTotal, err := s.xkcd.LastID(ctx)
+        if err != nil </span><span class="cov0" title="0">{
+                return ServiceStats{}, err
+        }</span>
+        <span class="cov8" title="1">return ServiceStats{
+                DBStats:     dbStats,
+                ComicsTotal: comicsTotal,
+        }, nil</span>
+}
+
+func (s *Service) Status(ctx context.Context) ServiceStatus <span class="cov8" title="1">{
+        if s.isBusy.Load() == 0 </span><span class="cov8" title="1">{
+                return StatusIdle
+        }</span>
+        <span class="cov8" title="1">return StatusRunning</span>
+}
+
+func (s *Service) Drop(ctx context.Context) error <span class="cov8" title="1">{
+        err := s.db.Drop(ctx)
+        if err != nil </span><span class="cov0" title="0">{
+                return err
+        }</span>
+        <span class="cov8" title="1">err = s.publisher.PublishUpdate(ctx)
+        if err != nil </span><span class="cov0" title="0">{
+                s.log.Error("failed to publish event", "err", err)
+                return err
+        }</span>
+        <span class="cov8" title="1">return nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file9" style="display: none">package words
+
+import (
+        "log/slog"
+        "slices"
+        "strings"
+        "unicode"
+
+        "github.com/kljensen/snowball"
+        "github.com/kljensen/snowball/english"
+        "google.golang.org/grpc/codes"
+        "google.golang.org/grpc/status"
+)
+
+func getMessageSlice(srcMessage string) []string <span class="cov8" title="1">{
+        srcMessage = strings.ToLower(srcMessage)
+        result := strings.FieldsFunc(srcMessage, func(r rune) bool </span><span class="cov8" title="1">{
+                return !unicode.IsLetter(r) &amp;&amp; !unicode.IsDigit(r)
+        }</span>)
+        <span class="cov8" title="1">return result</span>
+}
+
+func removeDuplicates(message []string) []string <span class="cov8" title="1">{
+        slices.Sort(message)
+        message = slices.Compact(message)
+        return message
+}</span>
+
+func filterAndStemMessage(message []string, language string) ([]string, error) <span class="cov8" title="1">{
+        var result = make([]string, 0, len(message))
+        for _, word := range message </span><span class="cov8" title="1">{
+                if english.IsStopWord(word) </span><span class="cov8" title="1">{
+                        continue</span>
+                }
+                <span class="cov8" title="1">stemmed, err := snowball.Stem(word, language, false)
+                result = append(result, stemmed)
+                if err != nil </span><span class="cov8" title="1">{
+                        return nil, status.Errorf(codes.Internal, "Error while stemming word "+word, "error", err)
+                }</span>
+        }
+        <span class="cov8" title="1">return result, nil</span>
+}
+
+func Norm(message string, language string) ([]string, error) <span class="cov8" title="1">{
+        var result []string
+
+        result = getMessageSlice(message)
+
+        result, err := filterAndStemMessage(result, language)
+        if err != nil </span><span class="cov8" title="1">{
+                slog.Error("Error while filter and stem", "err", err)
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">result = removeDuplicates(result)
+        return result, nil</span>
+}
+
+func NormLeaveDuplicates(message string, language string) ([]string, error) <span class="cov8" title="1">{
+        var result []string
+
+        result = getMessageSlice(message)
+
+        result, err := filterAndStemMessage(result, language)
+        if err != nil </span><span class="cov8" title="1">{
+                slog.Error("Error while filter and stem", "err", err)
+                return nil, err
+        }</span>
+        <span class="cov8" title="1">return result, nil</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

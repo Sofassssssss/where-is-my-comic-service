@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package update;
+
+import "google/protobuf/empty.proto";
+
+option go_package = "where-is-my-comic-service/search-services/proto/update";
+
+message StatsReply {
+  int64 words_total = 1;
+  int64 words_unique = 2;
+  int64 comics_total = 3;
+  int64 comics_fetched = 4;
+}
+
+message UpdateReply {
+  int64 comics_inserted = 1;
+}
+
+enum Status {
+  STATUS_UNSPECIFIED = 0;
+  STATUS_IDLE = 1;
+  STATUS_RUNNING = 2;
+}
+
+message StatusReply {
+  Status status = 1;
+}
+
+service Update {
+  rpc Ping(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+
+  rpc Status(google.protobuf.Empty) returns (StatusReply) {}
+
+  rpc Update(google.protobuf.Empty) returns (UpdateReply) {}
+
+  rpc Stats(google.protobuf.Empty) returns (StatsReply) {}
+
+  rpc Drop(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+}
