@@ -1,0 +1,24 @@
+name: setup go env
+
+runs:
+  using: composite
+
+  steps:
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.25'
+
+    - name: Add Go binaries to PATH
+      shell: bash
+      run: echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
+    - name: Install protobuf compiler
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y protobuf-compiler
+
+    - name: Install tools
+      shell: bash
+      run: make tools

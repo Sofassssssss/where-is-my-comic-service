@@ -1,0 +1,53 @@
+name: where is my comic service
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/workflows/setup-go-env
+      - name: Go mod setup
+        run: |
+          cd search-services
+          go mod tidy
+          go mod download
+      - name: Lint
+        run: make lint
+  unit_tests:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    needs:
+      - lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/workflows/setup-go-env
+      - name: Go mod setup
+        run: |
+          cd search-services
+          go mod tidy
+          go mod download
+      - name: Unit tests
+        run: make unit
+  integration_tests:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    needs:
+      - lint
+      - unit_tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/workflows/setup-go-env
+      - name: Go mod setup
+        run: |
+          cd search-services
+          go mod tidy
+          go mod download
+      - name: Integration tests
+        run: make test
